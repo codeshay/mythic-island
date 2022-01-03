@@ -1,24 +1,75 @@
-// const { respons, response } = require("express");
-const express = require("express");
-// const { request } = require("http");
+const express = require("express"); // const { request } = require("http");
+const session = require("express-session");
+const req = require("express/lib/request");
+const res = require("express/lib/response");
 
-//make app an express app
-const app = express();
+const app = express();  //make app an express app
 
-//name the port
-const port = process.env.PORT || "3800";
+const port = process.env.PORT || "3800"; //name the port
 
-//get ejs working
-app.set("view engine", "ejs");
+app.use('/public', express.static('public')); //enable access to the public folder -- app.use(express.static(__dirname + '/public'));
 
-//enable access to the public folder
-// app.use(express.static(__dirname + '/public'));
-app.use('/public', express.static('public'));
+app.use(express.urlencoded({extended: true}));  //instead of using body parser, parses the incoming requests with JSON payloads
+app.use(express.json());
 
-app.get("/", (request, response) => {
-    response.render("dock");
-    // response.send("Welcome to Mythic Island!" + " Go have a look around. If you're lucky you may just find a mythical creature.");    
+app.use(session({
+    secret: "random string aka mythic",
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }
+  })
+);
+
+app.set("view engine", "ejs");  //get ejs working
+
+app.get("/", (req, res) => {
+    let my_user = "";
+    let puncuation = "";
+    let invalid_login = false;
+
+    invalid_login = req.query.reason || null;
+
+    if (req.session && req.session.username){
+        my_user = req.session.username;
+        puncuation = ",";
+    }
+    const user = req.session ? req.session.username : "User not set";
+
+    res.render("index", {my_user: user, puncuation: puncuation, invalid_login: invalid_login});   
 })
+
+app.post("/signup", (req, res) => {
+    const valid_users = [
+        {"name":"sue", "password":"sue"}, 
+        {"name":"joe", "password":"joe"}, 
+        {"name":"shay", "password":"shay"}
+    ];
+    const user = req.body.username;
+    const pass = req.body.password;
+
+    const found_user = valid_users.find(usr => {
+        return usr.name == user && usr.password == pass
+    });
+
+    if (found_user){
+        req.session.username = user;
+        res.redirect("/dock");
+    } else {
+        req.session.destroy(() => {
+            console.log("user reset");
+        });
+        res.redirect("/?reason=invalid_user&day=fay");
+    }
+});
+
+app.get("/dock", (request, response) => {
+    if (req.session && req.session.username) {
+        response.render("dock", {user: request.session.username });
+        location = "dock";
+    } else {
+        res.redirect("/");
+    }
+});
 
 app.get("/boardwalk", (request, response) => {
     response.render("boardwalk");
