@@ -36,7 +36,13 @@ app.get("/", (req, res) => {
     const user = req.session ? req.session.username : "User not set";
 
     res.render("index", {my_user: user, puncuation: puncuation, invalid_login: invalid_login});   
-})
+});
+
+app.get("/signout", (req, res) => {
+    req.session.destroy(() => {
+        res.end("You have signed out");    //terminates the response cycle
+    });
+});
 
 app.post("/signup", (req, res) => {
     const valid_users = [
@@ -62,18 +68,36 @@ app.post("/signup", (req, res) => {
     }
 });
 
-app.get("/dock", (request, response) => {
+const validation = (req, res, next) => {     //putting logic in one place -- middleware function
     if (req.session && req.session.username) {
-        response.render("dock", {user: request.session.username });
-        location = "dock";
+        next();
+    } else {
+        res.redirect("/?reason=invalid_login");
+    }
+}
+
+app.get("/dock", (req, res) => {
+    if (req.session && req.session.username) {   //having logic inside the route
+        res.render("dock", {user: req.session.username });
     } else {
         res.redirect("/");
     }
 });
 
-app.get("/boardwalk", (request, response) => {
+app.get("/boardwalk", validation, (request, response) => {   //manualling having validation ran before a route
     response.render("boardwalk");
 })
+
+app.get("/*", validation); //catch all for remaining routes
+
+//const mw1 = (req, res, next) => {
+//     next();
+// }
+//const mw2 = (req, res, next) => {
+//     next();
+// }
+//const middlewares = [mw1, mw2, validation];    -- an array of middleware functions
+//app.get("/*", middlewares);
 
 app.get("/boardwalk2", (request, response) => {
     response.render("boardwalk2");
